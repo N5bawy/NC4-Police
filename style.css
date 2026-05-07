@@ -322,3 +322,73 @@ nav .active {
   border-radius: 999px;
 
 }
+
+.search-input {
+
+  width: 100%;
+  height: 60px;
+
+  margin-top: 20px;
+
+  background: #111827;
+
+  border: 1px solid #1565c0;
+
+  border-radius: 15px;
+
+  padding: 20px;
+
+  color: white;
+
+  outline: none;
+
+}
+
+.citizen-card {
+
+  margin-top: 25px;
+
+  background: #111827;
+
+  border-radius: 18px;
+
+  padding: 25px;
+
+}
+
+.citizen-card p {
+
+  margin-top: 10px;
+  color: #d1d5db;
+
+}
+
+.groups-grid {
+
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 20px;
+
+  margin-top: 30px;
+
+}
+
+.group-card {
+
+  background: #111827;
+
+  border: 1px solid #1565c0;
+
+  border-radius: 20px;
+
+  padding: 25px;
+
+}
+
+.group-card p {
+
+  margin-top: 10px;
+  color: #d1d5db;
+
+}
