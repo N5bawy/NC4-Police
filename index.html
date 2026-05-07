@@ -2,39 +2,162 @@
 <html lang="en">
 
 <head>
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>NC4 Police</title>
+  <title>NC4 Police Department</title>
 
   <link rel="stylesheet" href="style.css">
+
+  <script defer src="script.js"></script>
+
 </head>
 
 <body>
 
-  <div class="hero">
+  <div class="background"></div>
 
-    <div class="overlay"></div>
+  <aside class="sidebar">
 
-    <div class="content">
+    <div class="logo">
 
-      <h1>NC4 POLICE</h1>
+      <h1>NC4</h1>
 
-      <p>
-        Protect And To Serve
-      </p>
-
-      <a href="pages/dashboard.html">
-        <button>
-          ENTER SYSTEM
-        </button>
-      </a>
+      <p>Police Department</p>
 
     </div>
 
-  </div>
+    <nav>
 
-  <script src="script.js"></script>
+      <a href="#" class="active">
+        Dashboard
+      </a>
+
+      <a href="#">
+        MDT System
+      </a>
+
+      <a href="#">
+        Groups
+      </a>
+
+      <a href="#">
+        IA System
+      </a>
+
+      <a href="#">
+        SWAT
+      </a>
+
+      <a href="#">
+        Announcements
+      </a>
+
+    </nav>
+
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+
+      <div>
+
+        <h2>
+          NC4 POLICE SYSTEM
+        </h2>
+
+        <p>
+          Protect And To Serve
+        </p>
+
+      </div>
+
+      <button class="login-btn">
+        LOGIN WITH DISCORD
+      </button>
+
+    </header>
+
+    <section class="stats">
+
+      <div class="card">
+        <h3>Active Officers</h3>
+        <span>58</span>
+      </div>
+
+      <div class="card">
+        <h3>SWAT Status</h3>
+        <span>ONLINE</span>
+      </div>
+
+      <div class="card">
+        <h3>IA Reports</h3>
+        <span>3</span>
+      </div>
+
+      <div class="card">
+        <h3>Groups</h3>
+        <span>12</span>
+      </div>
+
+    </section>
+
+    <section class="panel-grid">
+
+      <div class="panel large">
+
+        <div class="panel-header">
+          <h3>Announcements</h3>
+        </div>
+
+        <div class="announcement emergency">
+          <h4>Emergency Activation</h4>
+          <p>
+            All Units Move To Standby Immediately
+          </p>
+        </div>
+
+        <div class="announcement">
+          <h4>SWAT Training</h4>
+          <p>
+            Tactical Team Training Starts 9 PM
+          </p>
+        </div>
+
+      </div>
+
+      <div class="panel">
+
+        <div class="panel-header">
+          <h3>Officer Status</h3>
+        </div>
+
+        <ul class="status-list">
+
+          <li>
+            <span>Jax Marten</span>
+            <strong class="online">ACTIVE</strong>
+          </li>
+
+          <li>
+            <span>Smith Marten</span>
+            <strong class="offline">OFFLINE</strong>
+          </li>
+
+          <li>
+            <span>Naif Saad</span>
+            <strong class="online">ACTIVE</strong>
+          </li>
+
+        </ul>
+
+      </div>
+
+    </section>
+
+  </main>
 
 </body>
 
