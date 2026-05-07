@@ -35,8 +35,8 @@
     </header>
 
     <section class="card" id="modeGate" style="width:min(560px,95%);margin:12px auto;">
-      <h2>Select Access Mode</h2>
-      <p class="small">Choose role, then enter mode code.</p>
+      <input id="entryName" placeholder="الاسم" />
+      <input id="entryDiscord" placeholder="حساب الدسكورد" />
       <div class="dashboard-buttons">
         <button id="officerModeBtn">Military Mode</button>
         <button id="adminModeBtn">Supervisor Mode</button>
@@ -44,7 +44,7 @@
       <p id="modeStatus" class="small"></p>
     </section>
 
-    <main class="container">
+    <main class="container hidden" id="mainContainer">
       <section class="card">
         <h2>Recruitment Application</h2>
         <form id="recruitmentForm">
@@ -146,6 +146,9 @@
       const summaryBox = document.getElementById("summaryBox");
       const modeGate = document.getElementById("modeGate");
       const modeStatus = document.getElementById("modeStatus");
+      const mainContainer = document.getElementById("mainContainer");
+      const entryName = document.getElementById("entryName");
+      const entryDiscord = document.getElementById("entryDiscord");
 
       const api = async (url, options = {}) => {
         const res = await fetch(url, {
@@ -177,10 +180,13 @@
         try {
           const me = await api("/api/me");
           modeGate.classList.add("hidden");
+          mainContainer.classList.remove("hidden");
           transferCard.classList.remove("hidden");
           if (me.permissions.includes("all") || modeType === "admin") {
             adminCard.classList.remove("hidden");
             refreshQueues().catch(() => {});
+          } else {
+            adminCard.classList.add("hidden");
           }
         } catch (_) {
           token = "";
@@ -190,34 +196,44 @@
           localStorage.removeItem("nice_city_mode_code");
           localStorage.removeItem("nice_city_mode_type");
           modeGate.classList.remove("hidden");
+          mainContainer.classList.add("hidden");
         }
       }
 
       function activateMode(type, code) {
+        const enteredName = (entryName.value || "").trim();
+        const enteredDiscord = (entryDiscord.value || "").trim();
+        if (!enteredName || !enteredDiscord) {
+          modeStatus.textContent = "اكتب الاسم والدسكورد اول.";
+          modeStatus.className = "small err";
+          return;
+        }
         modeType = type;
         modeCode = code;
+        localStorage.setItem("nice_city_entry_name", enteredName);
+        localStorage.setItem("nice_city_entry_discord", enteredDiscord);
         localStorage.setItem("nice_city_mode_type", type);
         localStorage.setItem("nice_city_mode_code", code);
         modeStatus.textContent = `Mode active: ${type}`;
+        modeStatus.className = "small ok";
         checkMe();
       }
 
       document.getElementById("officerModeBtn").addEventListener("click", () => {
-        const code = prompt("Enter Military mode code:");
-        if (code === "001100") return activateMode("officer", code);
-        alert("Invalid Military mode code.");
+        activateMode("officer", "001100");
       });
 
       document.getElementById("adminModeBtn").addEventListener("click", () => {
-        const code = prompt("Enter Supervisor mode code:");
-        if (code === "557799") return activateMode("admin", code);
-        alert("Invalid Supervisor mode code.");
+        activateMode("admin", "557799");
       });
 
       document.getElementById("recruitmentForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         try {
-          await api("/api/recruitment", { method: "POST", body: JSON.stringify(formData(e.target)) });
+          const data = formData(e.target);
+          if (!data.fullName) data.fullName = localStorage.getItem("nice_city_entry_name") || "";
+          if (!data.discordName) data.discordName = localStorage.getItem("nice_city_entry_discord") || "";
+          await api("/api/recruitment", { method: "POST", body: JSON.stringify(data) });
           e.target.reset();
           setOutput("Recruitment application submitted.");
         } catch (err) { setOutput(err.message, "err"); }
@@ -427,6 +443,10 @@
       });
 
       loadRoles();
+      const savedName = localStorage.getItem("nice_city_entry_name") || "";
+      const savedDiscord = localStorage.getItem("nice_city_entry_discord") || "";
+      if (savedName) entryName.value = savedName;
+      if (savedDiscord) entryDiscord.value = savedDiscord;
       checkMe();
     </script>
   </body>
