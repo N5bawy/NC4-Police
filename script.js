@@ -1,4 +1,4 @@
-console.log("NC4 SYSTEM LOADED")
+console.log("NC4 SYSTEM INITIALIZED")
 
 const cards = document.querySelectorAll(".card")
 
@@ -6,8 +6,7 @@ cards.forEach(card => {
 
   card.addEventListener("mouseenter", () => {
 
-    card.style.transform = "translateY(-5px)"
-    card.style.transition = ".3s"
+    card.style.transform = "translateY(-8px)"
 
   })
 
@@ -25,7 +24,7 @@ announcements.forEach(item => {
 
   item.addEventListener("mouseenter", () => {
 
-    item.style.border = "1px solid #2196f3"
+    item.style.border = "1px solid #3b82f6"
 
   })
 
