@@ -9,6 +9,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "nice-city-secret-change-me";
 const ALLOW_PUBLIC_REGISTRATION = process.env.ALLOW_PUBLIC_REGISTRATION === "true";
+const OFFICER_MODE_CODE = process.env.OFFICER_MODE_CODE || "001100";
+const ADMIN_MODE_CODE = process.env.ADMIN_MODE_CODE || "557799";
 const ANNOUNCEMENTS_WEBHOOK_URL = process.env.DISCORD_ANNOUNCEMENTS_WEBHOOK_URL || "";
 const APPOINTMENTS_WEBHOOK_URL = process.env.DISCORD_APPOINTMENTS_WEBHOOK_URL || "";
 const db = new sqlite3.Database(path.join(__dirname, "..", "nice-city-police.db"));
@@ -93,7 +95,35 @@ function signToken(user) {
 
 async function auth(req, res, next) {
   const token = (req.headers.authorization || "").replace("Bearer ", "");
-  if (!token) return res.status(401).json({ error: "Missing token" });
+  const modeCode = req.headers["x-mode-code"];
+
+  if (!token && modeCode) {
+    if (modeCode === ADMIN_MODE_CODE) {
+      req.user = {
+        id: 0,
+        username: "mode_admin",
+        full_name: "Mode Admin",
+        role_id: 0,
+        role_name: "Mode Admin",
+        permissions: ["all"]
+      };
+      return next();
+    }
+    if (modeCode === OFFICER_MODE_CODE) {
+      req.user = {
+        id: 0,
+        username: "mode_officer",
+        full_name: "Mode Officer",
+        role_id: 0,
+        role_name: "Mode Officer",
+        permissions: ["basic_portal"]
+      };
+      return next();
+    }
+    return res.status(401).json({ error: "Invalid mode code" });
+  }
+
+  if (!token) return res.status(401).json({ error: "Missing token or mode code" });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     const user = await get(
