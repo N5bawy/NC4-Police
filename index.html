@@ -19,6 +19,13 @@
       #dashboardOutput { margin-top:10px; background:#031428; border:1px solid #133863; border-radius:8px; padding:10px; max-height:280px; overflow:auto; color:#9bc0ff; white-space:pre-wrap; }
       .hidden { display:none; } .footer { text-align:center; color:var(--m); padding-bottom:24px; } .ok { color:#7effa0; } .err { color:#ff8d8d; }
       .divider { height:1px; background:#153766; margin:12px 0; }
+      .small { font-size:12px; color:var(--m); margin-top:-6px; margin-bottom:8px; }
+      .list { display:grid; gap:8px; margin-top:8px; }
+      .item { border:1px solid #1b4f90; border-radius:10px; padding:8px; background:#091d39; }
+      .row { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+      .muted { color:var(--m); font-size:12px; }
+      .actions { display:flex; gap:6px; }
+      .actions button { margin:0; padding:8px; }
     </style>
   </head>
   <body>
@@ -79,6 +86,13 @@
         </div>
         <pre id="dashboardOutput"></pre>
         <div class="divider"></div>
+        <h2>FTO Review Queues</h2>
+        <button id="refreshQueues">Refresh Recruitment & Transfers</button>
+        <h3>Recruitment Queue</h3>
+        <div id="recruitmentQueue" class="list"></div>
+        <h3>Transfer Queue</h3>
+        <div id="transferQueue" class="list"></div>
+        <div class="divider"></div>
         <h2>Appointment Announcement</h2>
         <form id="appointmentAnnouncementForm">
           <input name="organizationName" placeholder="Organization name (ex: Presidency of Police)" required />
@@ -97,6 +111,30 @@
           <input name="signature" placeholder="Signature (By: ...)" required />
           <button type="submit">Send General Announcement</button>
         </form>
+        <div class="divider"></div>
+        <h2>Account Management</h2>
+        <form id="adminCreateUserForm">
+          <input name="fullName" placeholder="Full name" required />
+          <input name="username" placeholder="Username" required />
+          <input name="password" placeholder="Password" required />
+          <select name="roleName" id="adminRoleCreate"></select>
+          <button type="submit">Create Account (Admin)</button>
+        </form>
+        <form id="adminChangeRoleForm">
+          <input name="userId" type="number" placeholder="User ID" required />
+          <select name="roleName" id="adminRoleChange"></select>
+          <button type="submit">Change User Role</button>
+        </form>
+        <form id="adminResetPassForm">
+          <input name="userId" type="number" placeholder="User ID" required />
+          <input name="newPassword" placeholder="New password" required />
+          <button type="submit">Reset Password</button>
+          <p class="small">Use after confirming ID from "Load Users".</p>
+        </form>
+        <form id="adminDeleteUserForm">
+          <input name="userId" type="number" placeholder="User ID" required />
+          <button type="submit">Delete User</button>
+        </form>
       </section>
     </main>
 
@@ -105,9 +143,14 @@
     <script>
       let token = localStorage.getItem("nice_city_token") || "";
       const rolesSelect = document.getElementById("roleSelect");
+      const adminRoleCreate = document.getElementById("adminRoleCreate");
+      const adminRoleChange = document.getElementById("adminRoleChange");
       const transferCard = document.getElementById("transferCard");
       const adminCard = document.getElementById("adminCard");
       const output = document.getElementById("dashboardOutput");
+      const registerForm = document.getElementById("registerForm");
+      const recruitmentQueue = document.getElementById("recruitmentQueue");
+      const transferQueue = document.getElementById("transferQueue");
 
       const api = async (url, options = {}) => {
         const res = await fetch(url, {
@@ -129,6 +172,17 @@
       async function loadRoles() {
         const roles = await api("/api/roles");
         rolesSelect.innerHTML = roles.map((r) => `<option>${r.name}</option>`).join("");
+        adminRoleCreate.innerHTML = roles.map((r) => `<option>${r.name}</option>`).join("");
+        adminRoleChange.innerHTML = roles.map((r) => `<option>${r.name}</option>`).join("");
+      }
+
+      async function loadConfig() {
+        try {
+          const cfg = await api("/api/config");
+          if (!cfg.allowPublicRegistration) {
+            registerForm.innerHTML = `<p class="err">Public registration is disabled by command.</p>`;
+          }
+        } catch (_) {}
       }
 
       async function checkMe() {
@@ -138,6 +192,7 @@
           transferCard.classList.remove("hidden");
           if (me.permissions.includes("all") || me.permissions.includes("review_applications") || me.permissions.includes("view_all")) {
             adminCard.classList.remove("hidden");
+            refreshQueues().catch(() => {});
           }
         } catch (_) {
           token = "";
@@ -200,6 +255,92 @@
         try { setOutput(JSON.stringify(await api("/api/users"), null, 2)); } catch (err) { setOutput(err.message, "err"); }
       });
 
+      function queueCard(title, subtitle, id, type, status) {
+        return `
+          <div class="item">
+            <div class="row">
+              <strong>${title}</strong>
+              <span class="muted">#${id} - ${status}</span>
+            </div>
+            <div class="muted">${subtitle}</div>
+            <div class="actions">
+              <button data-type="${type}" data-id="${id}" data-status="approved">Approve</button>
+              <button data-type="${type}" data-id="${id}" data-status="rejected">Reject</button>
+              <button data-type="${type}" data-id="${id}" data-status="pending">Set Pending</button>
+            </div>
+          </div>
+        `;
+      }
+
+      async function refreshQueues() {
+        try {
+          const recruits = await api("/api/recruitment");
+          recruitmentQueue.innerHTML = recruits.length
+            ? recruits.map((r) => queueCard(
+              `${r.full_name} (${r.discord_name || "N/A"})`,
+              `Age: ${r.age} | Experience: ${r.experience}`,
+              r.id,
+              "recruitment",
+              r.status
+            )).join("")
+            : `<div class="muted">No recruitment records.</div>`;
+        } catch (_) {
+          recruitmentQueue.innerHTML = `<div class="muted">No permission or no records.</div>`;
+        }
+
+        try {
+          const transfers = await api("/api/transfers");
+          transferQueue.innerHTML = transfers.length
+            ? transfers.map((t) => queueCard(
+              `User ID: ${t.user_id || t.id}`,
+              `${t.from_department} -> ${t.to_department} | ${t.reason}`,
+              t.id,
+              "transfer",
+              t.status
+            )).join("")
+            : `<div class="muted">No transfer records.</div>`;
+        } catch (_) {
+          transferQueue.innerHTML = `<div class="muted">No permission or no records.</div>`;
+        }
+      }
+
+      async function queueAction(type, id, status) {
+        const endpoint = type === "recruitment" ? `/api/recruitment/${id}/status` : `/api/transfers/${id}/status`;
+        await api(endpoint, {
+          method: "PATCH",
+          body: JSON.stringify({ status })
+        });
+      }
+
+      recruitmentQueue.addEventListener("click", async (e) => {
+        const btn = e.target.closest("button[data-type]");
+        if (!btn) return;
+        const ok = confirm(`Confirm ${btn.dataset.status} for recruitment #${btn.dataset.id}?`);
+        if (!ok) return;
+        try {
+          await queueAction(btn.dataset.type, btn.dataset.id, btn.dataset.status);
+          setOutput(`Recruitment #${btn.dataset.id} updated to ${btn.dataset.status}.`);
+          refreshQueues();
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      transferQueue.addEventListener("click", async (e) => {
+        const btn = e.target.closest("button[data-type]");
+        if (!btn) return;
+        const ok = confirm(`Confirm ${btn.dataset.status} for transfer #${btn.dataset.id}?`);
+        if (!ok) return;
+        try {
+          await queueAction(btn.dataset.type, btn.dataset.id, btn.dataset.status);
+          setOutput(`Transfer #${btn.dataset.id} updated to ${btn.dataset.status}.`);
+          refreshQueues();
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      document.getElementById("refreshQueues").addEventListener("click", async () => {
+        await refreshQueues();
+        setOutput("Queues refreshed.");
+      });
+
       document.getElementById("appointmentAnnouncementForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const data = formData(e.target);
@@ -239,6 +380,56 @@
         }
       });
 
+      document.getElementById("adminCreateUserForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          await api("/api/admin/users", { method: "POST", body: JSON.stringify(formData(e.target)) });
+          setOutput("Account created by admin.");
+          e.target.reset();
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      document.getElementById("adminChangeRoleForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          const data = formData(e.target);
+          await api(`/api/admin/users/${data.userId}/role`, {
+            method: "PATCH",
+            body: JSON.stringify({ roleName: data.roleName })
+          });
+          setOutput("User role updated.");
+          e.target.reset();
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      document.getElementById("adminResetPassForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = formData(e.target);
+        const ok = confirm(`Confirm reset password for user ID ${data.userId}?`);
+        if (!ok) return;
+        try {
+          await api(`/api/admin/users/${data.userId}/password`, {
+            method: "PATCH",
+            body: JSON.stringify({ newPassword: data.newPassword })
+          });
+          setOutput("Password reset completed.");
+          e.target.reset();
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      document.getElementById("adminDeleteUserForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = formData(e.target);
+        const ok = confirm(`Confirm delete user ID ${data.userId}? This cannot be undone.`);
+        if (!ok) return;
+        try {
+          await api(`/api/admin/users/${data.userId}`, { method: "DELETE" });
+          setOutput("User deleted.");
+          e.target.reset();
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      loadConfig();
       loadRoles();
       checkMe();
     </script>
