@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nice City Police Portal</title>
+    <style>
+      :root { --bg:#050b16; --bg2:#0b162e; --p:#1473e6; --p2:#2f8fff; --t:#d9e8ff; --m:#8fa8d1; --b:#153766; }
+      * { box-sizing:border-box; font-family:Arial,sans-serif; }
+      body { margin:0; min-height:100vh; background:linear-gradient(160deg,var(--bg),var(--bg2)); color:var(--t); }
+      .header { text-align:center; padding:28px 16px 8px; }
+      .header h1 { margin:0; color:var(--p2); } .header p { margin:8px 0 0; color:var(--m); }
+      .container { width:min(1080px,95%); margin:24px auto 48px; display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
+      .card { background:rgba(8,22,45,.9); border:1px solid var(--b); border-radius:12px; padding:14px; }
+      .card h2 { margin-top:0; color:var(--p2); }
+      input,textarea,select,button { width:100%; border-radius:8px; border:1px solid #1b4f90; padding:10px; margin-bottom:10px; background:#0a2142; color:var(--t); }
+      textarea { min-height:92px; resize:vertical; } button { cursor:pointer; background:linear-gradient(90deg,var(--p),var(--p2)); border:none; font-weight:bold; }
+      .dashboard-buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+      #dashboardOutput { margin-top:10px; background:#031428; border:1px solid #133863; border-radius:8px; padding:10px; max-height:280px; overflow:auto; color:#9bc0ff; white-space:pre-wrap; }
+      .hidden { display:none; } .footer { text-align:center; color:var(--m); padding-bottom:24px; } .ok { color:#7effa0; } .err { color:#ff8d8d; }
+      .divider { height:1px; background:#153766; margin:12px 0; }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <h1>Nice City Police Department</h1>
+      <p>Secure Management Portal</p>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h2>Login</h2>
+        <form id="loginForm">
+          <input name="username" placeholder="Username" required />
+          <input name="password" placeholder="Password" type="password" required />
+          <button type="submit">Login</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Create Account</h2>
+        <form id="registerForm">
+          <input name="fullName" placeholder="Full name" required />
+          <input name="username" placeholder="Username" required />
+          <input name="password" placeholder="Password" type="password" required />
+          <select name="roleName" id="roleSelect"></select>
+          <button type="submit">Register</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Recruitment Application</h2>
+        <form id="recruitmentForm">
+          <input name="fullName" placeholder="Full name" required />
+          <input name="age" placeholder="Age" type="number" required />
+          <input name="discordName" placeholder="Discord name" required />
+          <textarea name="experience" placeholder="Experience" required></textarea>
+          <button type="submit">Submit Recruitment</button>
+        </form>
+      </section>
+
+      <section class="card hidden" id="transferCard">
+        <h2>Transfer Request</h2>
+        <form id="transferForm">
+          <input name="fromDepartment" placeholder="From department" required />
+          <input name="toDepartment" placeholder="To department" required />
+          <textarea name="reason" placeholder="Reason for transfer" required></textarea>
+          <button type="submit">Submit Transfer</button>
+        </form>
+      </section>
+
+      <section class="card hidden" id="adminCard">
+        <h2>Command Dashboard</h2>
+        <div class="dashboard-buttons">
+          <button id="loadRecruitment">Load Recruitment</button>
+          <button id="loadTransfers">Load Transfers</button>
+          <button id="loadAppointments">Load Appointments</button>
+          <button id="loadUsers">Load Users</button>
+        </div>
+        <pre id="dashboardOutput"></pre>
+        <div class="divider"></div>
+        <h2>Appointment Announcement</h2>
+        <form id="appointmentAnnouncementForm">
+          <input name="organizationName" placeholder="Organization name (ex: Presidency of Police)" required />
+          <input name="appointeeName" placeholder="Appointee name" required />
+          <input name="appointeeTag" placeholder="Appointee tag (ex: @400 / saad altamimi)" />
+          <input name="newRank" placeholder="New rank (ex: Sergeant)" required />
+          <input name="authorityName" placeholder="Authority name" required />
+          <input name="authorityTag" placeholder="Authority tag (ex: @A-2 | Smith Marten)" />
+          <textarea name="extraNotes" placeholder="Extra notes"></textarea>
+          <button type="submit">Send Appointment Announcement</button>
+        </form>
+        <h2>General Announcement</h2>
+        <form id="generalAnnouncementForm">
+          <input name="title" placeholder="Announcement title" required />
+          <textarea name="body" placeholder="Announcement body" required></textarea>
+          <input name="signature" placeholder="Signature (By: ...)" required />
+          <button type="submit">Send General Announcement</button>
+        </form>
+      </section>
+    </main>
+
+    <footer class="footer">All rights reserved to Nice City</footer>
+
+    <script>
+      let token = localStorage.getItem("nice_city_token") || "";
+      const rolesSelect = document.getElementById("roleSelect");
+      const transferCard = document.getElementById("transferCard");
+      const adminCard = document.getElementById("adminCard");
+      const output = document.getElementById("dashboardOutput");
+
+      const api = async (url, options = {}) => {
+        const res = await fetch(url, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: "Bearer " + token } : {}),
+            ...(options.headers || {})
+          }
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Request failed");
+        return data;
+      };
+
+      const setOutput = (msg, type = "ok") => { output.innerHTML = `<span class="${type}">${msg}</span>`; };
+      const formData = (form) => Object.fromEntries(new FormData(form).entries());
+
+      async function loadRoles() {
+        const roles = await api("/api/roles");
+        rolesSelect.innerHTML = roles.map((r) => `<option>${r.name}</option>`).join("");
+      }
+
+      async function checkMe() {
+        if (!token) return;
+        try {
+          const me = await api("/api/me");
+          transferCard.classList.remove("hidden");
+          if (me.permissions.includes("all") || me.permissions.includes("review_applications") || me.permissions.includes("view_all")) {
+            adminCard.classList.remove("hidden");
+          }
+        } catch (_) {
+          token = "";
+          localStorage.removeItem("nice_city_token");
+        }
+      }
+
+      document.getElementById("registerForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          const data = formData(e.target);
+          const r = await api("/api/auth/register", { method: "POST", body: JSON.stringify(data) });
+          token = r.token;
+          localStorage.setItem("nice_city_token", token);
+          setOutput("Account created and logged in.");
+          checkMe();
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      document.getElementById("loginForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          const data = formData(e.target);
+          const r = await api("/api/auth/login", { method: "POST", body: JSON.stringify(data) });
+          token = r.token;
+          localStorage.setItem("nice_city_token", token);
+          setOutput("Logged in successfully.");
+          checkMe();
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      document.getElementById("recruitmentForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          await api("/api/recruitment", { method: "POST", body: JSON.stringify(formData(e.target)) });
+          e.target.reset();
+          setOutput("Recruitment application submitted.");
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      document.getElementById("transferForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          await api("/api/transfers", { method: "POST", body: JSON.stringify(formData(e.target)) });
+          e.target.reset();
+          setOutput("Transfer request submitted.");
+        } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      document.getElementById("loadRecruitment").addEventListener("click", async () => {
+        try { setOutput(JSON.stringify(await api("/api/recruitment"), null, 2)); } catch (err) { setOutput(err.message, "err"); }
+      });
+      document.getElementById("loadTransfers").addEventListener("click", async () => {
+        try { setOutput(JSON.stringify(await api("/api/transfers"), null, 2)); } catch (err) { setOutput(err.message, "err"); }
+      });
+      document.getElementById("loadAppointments").addEventListener("click", async () => {
+        try { setOutput(JSON.stringify(await api("/api/appointments"), null, 2)); } catch (err) { setOutput(err.message, "err"); }
+      });
+      document.getElementById("loadUsers").addEventListener("click", async () => {
+        try { setOutput(JSON.stringify(await api("/api/users"), null, 2)); } catch (err) { setOutput(err.message, "err"); }
+      });
+
+      document.getElementById("appointmentAnnouncementForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = formData(e.target);
+        const preview = [
+          `[شرطة] ${data.organizationName}`,
+          `يتم تعيين ${data.appointeeTag || data.appointeeName}`,
+          `برتبة ${data.newRank}`,
+          `By: ${data.authorityTag || data.authorityName}`,
+          `|| @everyone ||`
+        ].join("\\n");
+
+        const ok = confirm("تأكيد إرسال إعلان التعيين؟\\n\\n" + preview);
+        if (!ok) return;
+
+        try {
+          await api("/api/announce/appointment", { method: "POST", body: JSON.stringify(data) });
+          setOutput("Appointment announcement sent successfully.");
+          e.target.reset();
+        } catch (err) {
+          setOutput(err.message, "err");
+        }
+      });
+
+      document.getElementById("generalAnnouncementForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = formData(e.target);
+        const preview = [`${data.title}`, `${data.body}`, `By: ${data.signature}`, `|| @everyone ||`].join("\\n");
+        const ok = confirm("تأكيد إرسال الإعلان العام؟\\n\\n" + preview);
+        if (!ok) return;
+
+        try {
+          await api("/api/announce/general", { method: "POST", body: JSON.stringify(data) });
+          setOutput("General announcement sent successfully.");
+          e.target.reset();
+        } catch (err) {
+          setOutput(err.message, "err");
+        }
+      });
+
+      loadRoles();
+      checkMe();
+    </script>
+  </body>
+</html>
